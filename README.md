@@ -26,7 +26,7 @@ Put these three things in env_vars.ts:
 
 * The `PRIVATE_KEY` (sans leading 0x) for the wallet that you want to execute a reweight from,
 * The `INFURA_KEY` that allows you read on-chain data and submit the reweight via their API, and
-* The address of the `UNDERLYING` token of the vault: if you're optimising the nUSDT vault, use the USDT address.
+* The `UNDERLYING_LIST` of token addresses for the vaults: if you're optimising the nUSDT and nSUSHI vault, use the USDT and SUSHI addresses.
 
 If you don't have an Infura API key, here's how to get one: https://medium.com/jelly-market/how-to-get-infura-api-key-e7d552dd396f
 
@@ -36,7 +36,7 @@ PLEASE be careful with your private key. _Don't_ clone this repo and then accide
 
 `ts-node optimise_vault.ts`
 
-That's it. It'll tell you if there are any hang-ups, and if not, it'll execute it for you.
+That's it. It'll tell you if there are any hang-ups, and if not, it'll execute any reweighs it detects for you.
 
 Make sure you have a 'decent' amount of ETH in the wallet you're executing from: errors are not refined in the event of a transaction failure due to insufficient gas, so if it bugs out, that's probably why.
 
@@ -56,7 +56,7 @@ https://docs.indexed.finance/yield-aggregator-smart-contracts/deployments#asset-
 
 ## FAQ
 
-### Why Don't You Just Ask For The Vault Address In `env_var.ts`?
+### Why Don't You Just Ask For Vault Addresses In `env_var.ts`?
 
 We need the address of the underlying to query the adapter registry for the currently supported adapters.
 
