@@ -12,24 +12,13 @@ import { InfuraProvider } from '@ethersproject/providers';
 import { Contract } from '@ethersproject/contracts';
 import { Wallet } from '@ethersproject/wallet';
 
-// ------------------------
-// THINGS *YOU* NEED TO ENTER
-// ------------------------
-
-// Enter your private key here, without the leading 0x.
-// Do NOT go putting this on GitHub or something of the sort.
-const PRIVATE_KEY = "{YOUR_PRIVATE_KEY_HERE_PLEASE_GOD_KEEP_IT_SAFE}"
-
-// Enter your Infura API key here.
-const provider = new InfuraProvider('mainnet', '{YOUR_API_KEY_HERE}');
-
-// Enter the token address for the underlying you want to optimise the vault for.
-// As an example, this is the address for USDT.
-const underlying = '0xdAC17F958D2ee523a2206206994597C13D831ec7'
+import { PRIVATE_KEY, INFURA_KEY, UNDERLYING } from './environment';
 
 // -------------------
 // Top-Level Variables
 // -------------------
+
+const provider = new InfuraProvider('mainnet', INFURA_KEY);
 
 const weight_unity = 1000000000000000000;
 
@@ -76,7 +65,7 @@ async function setup_vault(vault_addr) {
 async function execute() {
     // Administrative, fetching names and what have you
     await setup_registry();
-    const vault = await adapter_registry.vaultsByUnderlying(underlying);
+    const vault = await adapter_registry.vaultsByUnderlying(UNDERLYING);
     await setup_vault(vault);
     const vault_underlying = await nirn_vault.name();
     console.log(`Targeted vault is %s, at address %s`, vault_underlying, vault);
@@ -92,7 +81,7 @@ async function execute() {
     console.log(combined_current);
 
     // Get sorted list of adapters and APRs for current deposit levels for the given vault
-    const sorted_adapters = await adapter_registry.getAdaptersSortedByAPRWithDeposit(underlying, 0, null_addr);
+    const sorted_adapters = await adapter_registry.getAdaptersSortedByAPRWithDeposit(UNDERLYING, 0, null_addr);
     const sorted_adapter_map = new Map<String,Number>(zip(sorted_adapters[0], sorted_adapters[1].map(a => Number(a))));
     console.log(`\nAvailable adapter rates at current levels:`);
     console.log(sorted_adapter_map);
