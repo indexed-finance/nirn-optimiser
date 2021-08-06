@@ -10,7 +10,7 @@ import { InfuraProvider } from '@ethersproject/providers';
 import { Contract } from '@ethersproject/contracts';
 import { Wallet } from '@ethersproject/wallet';
 
-import { PRIVATE_KEY, INFURA_KEY, UNDERLYING } from './env_vars';
+import { PRIVATE_KEY, INFURA_KEY, UNDERLYING_LIST } from './env_vars';
 
 // -------------------
 // Top-Level Variables
@@ -64,13 +64,13 @@ async function setup_vault(vault_addr) {
 // The Actual Optimiser
 // --------------------
 
-async function execute() {
+async function execute(underlying) {
     // Administrative, fetching names and what have you
     await setup_registry();
-    const vault = await adapter_registry.vaultsByUnderlying(UNDERLYING);
+    const vault = await adapter_registry.vaultsByUnderlying(underlying);
     await setup_vault(vault);
     const vault_underlying = await nirn_vault.name();
-    console.log(`Targeted vault is %s, at address %s`, vault_underlying, vault);
+    console.log(`\nTargeted vault is %s, at address %s`, vault_underlying, vault);
 
     // Find current weightings of the vault to determine existing APR
     const current_adapters_weights = await nirn_vault.getAdaptersAndWeights();
@@ -83,7 +83,7 @@ async function execute() {
     console.log(combined_current);
 
     // Get sorted list of adapters and APRs for current deposit levels for the given vault
-    const sorted_adapters = await adapter_registry.getAdaptersSortedByAPRWithDeposit(UNDERLYING, 0, null_addr);
+    const sorted_adapters = await adapter_registry.getAdaptersSortedByAPRWithDeposit(underlying, 0, null_addr);
     const sorted_adapter_map = new Map<String,Number>(zip(sorted_adapters[0], sorted_adapters[1].map(a => Number(a))));
     console.log(`\nAvailable adapter rates at current levels:`);
     console.log(sorted_adapter_map);
@@ -117,7 +117,7 @@ async function execute() {
     const best_adapter = sorted_adapters[0][0]
 
     if (!only_one_adapter) {
-        console.log(`\nOptimiser violation: more than one adapter currently in use. Please wait for an improved version of the optimiser.`);
+        console.log(`\nOptimiser complete: more than one adapter currently in use. Please wait for an improved version of the optimiser.`);
     }
     else {
       const current_best_adapter = sorted_adapters[0].indexOf(current_adapter) == 0;
@@ -126,26 +126,26 @@ async function execute() {
       const best_adapter_rate = sorted_adapter_map.get(best_adapter);
 
       if (current_best_adapter) {
-        console.log(`\nOptimiser violation: vault is currently utilising the best APR adapter at a rate of %d%.`, round2(toAPR(current_adapter_rate)));
+        console.log(`\nOptimiser complete: vault is currently utilising the best APR adapter at a rate of %d%.`, round2(toAPR(current_adapter_rate)));
       }
       else {
         const multiple_potential_adapters = sorted_adapter_map.size > 1;
 
         if (!multiple_potential_adapters) {
-          console.log(`\nOptimiser violation: only one available adapter for the vault.`);
+          console.log(`\nOptimiser complete: only one available adapter for the vault.`);
         }
         else {
           const adapter_difference = Number(best_adapter_rate) / Number(current_adapter_rate);
 
           if (adapter_difference < 1.05) {
-            console.log(`\nOptimiser violation: insufficient percentage gain for reweighting - need at least 1.05x, got %sx.`, round2(adapter_difference));
+            console.log(`\nOptimiser complete: insufficient percentage gain for reweighting - need at least 1.05x, got %sx.`, round2(adapter_difference));
           }
           else {
             const time_to_rebalance = await nirn_vault.canChangeCompositionAfter();
             const current_time = Math.round(Date.now()/1000);
 
             if (current_time <= time_to_rebalance) {
-              console.log(`\nOptimiser violation: insufficient time has passed since the previous reweighting. `
+              console.log(`\nOptimiser complete: insufficient time has passed since the previous reweighting. `
                         + `Wait %s seconds and try again.`, time_to_rebalance - current_time);
             }
             else {
@@ -163,7 +163,20 @@ async function execute() {
         }
       }
     }
-  }
+}
+
+async function mass_execute() {
+    const total_vaults_to_reweigh = UNDERLYING_LIST.length;
+
+    for (let ix in UNDERLYING_LIST) {
+      console.log('\n------------------------------------');
+      console.log('\n*** Executing optimisation %d of %d...', Number(ix) + 1, total_vaults_to_reweigh);
+      console.log('\n------------------------------------');
+
+      const underlying = UNDERLYING_LIST[ix]
+      await(execute(underlying));
+    }
+}
 
 // All that build-up, leading up to... this.
-execute();
+mass_execute();
