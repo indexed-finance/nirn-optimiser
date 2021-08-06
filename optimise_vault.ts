@@ -150,7 +150,7 @@ async function execute(underlying) {
             }
             else {
               // Okay, NOW we can go!
-              console.log(`\nAdjusting vault from a rate of %d to %d...`, toAPR(current_adapter_rate), toAPR(best_adapter_rate));
+              console.log(`\nAdjusting vault from a rate of %d% to %d%...`, round2(toAPR(current_adapter_rate)), round2(toAPR(best_adapter_rate)));
               const gasPrice = (await provider.getGasPrice()).mul(12).div(10);
               const gasLimit = await nirn_vault.estimateGas.rebalanceWithNewAdapters([best_adapter], [weight_unity.toString()]);
 
