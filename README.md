@@ -6,9 +6,13 @@ Script for detecting and adjusting weightings of Nirn yield aggregator vaults.
 
 ## Current Status
 
-This is *very* simple at present, and simply pushes funds across protocols where the yield is best.
+This is *very* simple at present, and simply pushes funds across protocols to where the yield is best.
 
-It can - and will - get more sophisticated as time goes on. At current TVLs, it is HUGELY unlikely to be optimal to split protocol allocations.
+**Key assumption**: the current distribution is only utilising a single adapter.
+
+This can - and will - get more sophisticated as time goes on. At _current_ TVLs, it is HUGELY unlikely to be optimal to split assets across protocols, except to flex that we *can*.
+
+If you feel like refactoring this to improve my... middling Typescript, PRs are welcomed.
 
 ## Prerequisites
 
@@ -20,13 +24,13 @@ Run `yarn install` in the main directory.
 
 Put these three things in env_vars.ts:
 
-* The private key (sans leading 0x) for the wallet that you want to execute a reweight from,
-* Your Infura API key to read on-chain data and submit the reweight
-* The address of the _underlying token_ of the vault: if you're optimising the nUSDT vault, enter the USDT address.
+* The `PRIVATE_KEY` (sans leading 0x) for the wallet that you want to execute a reweight from,
+* The `INFURA_KEY` that allows you read on-chain data and submit the reweight via their API, and
+* The address of the `UNDERLYING` token of the vault: if you're optimising the nUSDT vault, use the USDT address.
 
 If you don't have an Infura API key, here's how to get one: https://medium.com/jelly-market/how-to-get-infura-api-key-e7d552dd396f
 
-PLEASE be careful with your private key. Don't clone this repo and then accidentally push it up.
+PLEASE be careful with your private key. _Don't_ clone this repo and then accidentally push it up.
 
 ## Execution
 
@@ -38,7 +42,7 @@ Make sure you have a 'decent' amount of ETH in the wallet you're executing from:
 
 ## In Action
 
-Targeting the nWBTC vault, shifting funds from Fulcrum to C.R.E.A.M.
+Targeting the nWBTC vault, shifting funds from Fulcrum to C.R.E.A.M.:
 
 ![image](https://user-images.githubusercontent.com/36096924/128519317-a99f98c9-b08f-406d-994e-fb4dd39fcd73.png)
 
