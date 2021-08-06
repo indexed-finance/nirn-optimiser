@@ -46,6 +46,10 @@ function round2(n) {
     return Math.round(n * 100)/100;
 }
 
+function toAPR(n) {
+    return n/weight_unity * 100;
+}
+
 // --------------------------
 // On-Chain Interaction Setup
 // --------------------------
@@ -120,8 +124,11 @@ async function execute() {
     else {
       const current_best_adapter = sorted_adapters[0].indexOf(current_adapter) == 0;
 
+      const current_adapter_rate = sorted_adapter_map.get(current_adapter);
+      const best_adapter_rate = sorted_adapter_map.get(best_adapter);
+      
       if (current_best_adapter) {
-        console.log(`\nOptimiser violation: vault is currently utilising the best APR adapter.`);
+        console.log(`\nOptimiser violation: vault is currently utilising the best APR adapter at a rate of %d%.`, round2(toAPR(current_adapter_rate)));
       }
       else {
         const multiple_potential_adapters = sorted_adapter_map.size > 1;
@@ -130,9 +137,6 @@ async function execute() {
           console.log(`\nOptimiser violation: only one available adapter for the vault.`);
         }
         else {
-          const current_adapter_rate = sorted_adapter_map.get(current_adapter);
-          const best_adapter_rate = sorted_adapter_map.get(best_adapter);
-
           const adapter_difference = Number(best_adapter_rate) / Number(current_adapter_rate);
 
           if (adapter_difference < 1.05) {
@@ -148,6 +152,7 @@ async function execute() {
             }
             else {
               // Okay, NOW we can go!
+              console.log(`\nAdjusting vault from a rate of %d to %d...`, toAPR(current_adapter_rate), toAPR(best_adapter_rate));
               const gasPrice = (await provider.getGasPrice()).mul(12).div(10);
               const gasLimit = await nirn_vault.estimateGas.rebalanceWithNewAdapters([best_adapter], [weight_unity.toString()]);
 
