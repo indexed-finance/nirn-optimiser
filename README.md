@@ -50,6 +50,10 @@ Result: https://etherscan.io/tx/0x29825ade33e7705cd7a6c4962c48c16a4fbd4ea79c1c51
 
 Account has no whitelisted permissions within Nirn: you can do this too.
 
+## Currently Active Vaults
+
+https://docs.indexed.finance/yield-aggregator-smart-contracts/deployments#asset-vaults
+
 ## Got Questions?
 
 Hop into the Indexed Finance Discord and ask! http://discord.indexed.finance
