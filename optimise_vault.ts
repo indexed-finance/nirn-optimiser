@@ -146,7 +146,7 @@ async function execute() {
 
           const adapter_difference = Number(best_adapter_rate) / Number(current_adapter_rate);
 
-          if (adapter_difference > 1.05) {
+          if (adapter_difference < 1.05) {
             console.log(`\nOptimiser violation: insufficient percentage gain for reweighting - need at least 1.05x, got %sx.`, round2(adapter_difference));
           }
           else {
