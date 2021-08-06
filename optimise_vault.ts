@@ -4,8 +4,6 @@ Nirn Vault Optimiser: Version 0.1
 
 I'm not writing a license blurb for this. Do what you want with it.
 
-Fill out lines 21, 24 and 28 as appropriate, then run the script.
-
 **/
 
 import { InfuraProvider } from '@ethersproject/providers';
@@ -126,7 +124,7 @@ async function execute() {
 
       const current_adapter_rate = sorted_adapter_map.get(current_adapter);
       const best_adapter_rate = sorted_adapter_map.get(best_adapter);
-      
+
       if (current_best_adapter) {
         console.log(`\nOptimiser violation: vault is currently utilising the best APR adapter at a rate of %d%.`, round2(toAPR(current_adapter_rate)));
       }
