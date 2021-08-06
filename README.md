@@ -54,6 +54,14 @@ Account has no whitelisted permissions within Nirn: you can do this too.
 
 https://docs.indexed.finance/yield-aggregator-smart-contracts/deployments#asset-vaults
 
+## FAQ
+
+### Why Don't You Just Ask For The Vault Address In `env_var.ts`?
+
+We need the address of the underlying to query the adapter registry for the currently supported adapters.
+
+I'll fix this in a future version so you can just get away with entering the vault address directly.
+
 ## Got Questions?
 
 Hop into the Indexed Finance Discord and ask! http://discord.indexed.finance
