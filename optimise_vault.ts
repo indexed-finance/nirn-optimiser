@@ -12,7 +12,7 @@ import { InfuraProvider } from '@ethersproject/providers';
 import { Contract } from '@ethersproject/contracts';
 import { Wallet } from '@ethersproject/wallet';
 
-import { PRIVATE_KEY, INFURA_KEY, UNDERLYING } from './environment';
+import { PRIVATE_KEY, INFURA_KEY, UNDERLYING } from './env_vars';
 
 // -------------------
 // Top-Level Variables
