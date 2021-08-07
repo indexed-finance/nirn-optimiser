@@ -9,6 +9,8 @@ I'm not writing a license blurb for this. Do what you want with it.
 import { InfuraProvider } from '@ethersproject/providers';
 import { Contract } from '@ethersproject/contracts';
 import { Wallet } from '@ethersproject/wallet';
+import { NirnSubgraphClient } from '@indexed-finance/subgraph-clients'
+import { TokenAdapter } from "@indexed-finance/subgraph-clients/dist/nirn/types";
 
 import { PRIVATE_KEY, INFURA_KEY, UNDERLYING_LIST } from './env_vars';
 
@@ -33,6 +35,8 @@ const AdapterABI = require('./optimiser-deployments/TokenAdapter.json'); // this
 let adapter_registry: Contract;
 let nirn_vault: Contract;
 let token_adapter: Contract;
+
+let getAdapterProtocolName: (address: string) => string;
 
 // -------------------
 // Auxiliary Functions
@@ -64,12 +68,22 @@ function calculate_current_apr(ad_lst, cr_ad_map, av_ad_map) {
     return totalAPR;
 }
 
-async function get_adapter_protocol(adapter_addr) {
-    await setup_token_adapter(adapter_addr);
+// --------------------------
+// Protocol Name Lookup Table
+// --------------------------------
 
-    const adapter_protocol = await token_adapter.name();
-
-    return adapter_protocol.split(" ")[0];
+async function getAdapterMetadataLookup() {
+  const adaptersList = await NirnSubgraphClient.forNetwork('mainnet').allTokenAdapters()
+  const lookupTable: Record<string, TokenAdapter> = adaptersList.reduce((prev, next) => ({
+    ...prev,
+    [next.id]: next
+  }), {});
+  const getAdapterProtocolName = (adapterAddress: string) => lookupTable[adapterAddress.toLowerCase()].protocol.name
+  return {
+    lookupTable,
+    adaptersList,
+    getAdapterProtocolName
+  };
 }
 
 // --------------------------
@@ -92,7 +106,9 @@ async function setup_token_adapter(adapter_addr) {
 // The Actual Optimiser
 // --------------------
 
+
 async function execute(underlying) {
+    
     // Administrative, fetching names and what have you
     await setup_registry();
     const vault = await adapter_registry.vaultsByUnderlying(underlying);
@@ -138,7 +154,7 @@ async function execute(underlying) {
     const current_adapter = current_adapters[0]
     const best_adapter = sorted_adapters[0][0]
 
-    const adapter_name = await get_adapter_protocol(current_adapter);
+    const adapter_name = await getAdapterProtocolName(current_adapter);
 
     let name_of_current: string;
     if ( current_adapters.length > 1 ) { name_of_current = "a mixture of adapters" } else { name_of_current = adapter_name }
@@ -146,7 +162,9 @@ async function execute(underlying) {
     const current_adapter_rate = calculate_current_apr(current_adapters, current_adapter_map, sorted_adapter_map);
     const best_single_adapter_rate = sorted_adapter_map.get(best_adapter);
 
-    console.log(`\n*** Current adapter rate is %d%, via %s.`, round2(toAPR(current_adapter_rate)), name_of_current);
+    console.log(`\n*** Current adapter rate is %d%, via %s.`
+              , round2(toAPR(current_adapter_rate))
+              , name_of_current);
 
     const multiple_potential_adapters = sorted_adapter_map.size > 1;
 
@@ -161,7 +179,8 @@ async function execute(underlying) {
       }
       else {
         if (adapter_difference < 1.05) {
-          console.log(`\nOptimiser complete: insufficient percentage gain for reweighting - need at least 1.05x, got %sx.`, round2(adapter_difference));
+          console.log(`\nOptimiser complete: insufficient percentage gain for reweighting - need at least 1.05x, got %sx.`
+                    , round2(adapter_difference));
         }
         else {
           const time_to_rebalance = await nirn_vault.canChangeCompositionAfter();
@@ -173,8 +192,11 @@ async function execute(underlying) {
           }
           else {
             // Okay, NOW we can go!
-            const best_adapter_name = await get_adapter_protocol(best_adapter);
-            console.log(`\nMoving vault funds to %s to shift from a rate of %d% to %d%...`, best_adapter_name, round2(toAPR(current_adapter_rate)), round2(toAPR(best_single_adapter_rate)));
+            const best_adapter_name = await getAdapterProtocolName(best_adapter);
+            console.log(`\nMoving vault funds to %s to shift from a rate of %d% to %d%...`
+                       , best_adapter_name
+                       , round2(toAPR(current_adapter_rate))
+                       , round2(toAPR(best_single_adapter_rate)));
             const gasPrice = (await provider.getGasPrice()).mul(12).div(10);
             const gasLimit = await nirn_vault.estimateGas.rebalanceWithNewAdapters([best_adapter], [weight_unity.toString()]);
 
@@ -188,12 +210,19 @@ async function execute(underlying) {
     }
 }
 
+async function setup() {
+  ({ getAdapterProtocolName } = await getAdapterMetadataLookup());
+}
+
 async function mass_execute() {
+        
     const total_vaults_to_reweigh = UNDERLYING_LIST.length;
 
     for (let ix in UNDERLYING_LIST) {
       console.log('\n------------------------------------');
-      console.log('\n*** Executing optimisation %d of %d...', Number(ix) + 1, total_vaults_to_reweigh);
+      console.log('\n*** Executing optimisation %d of %d...'
+                , Number(ix) + 1
+                , total_vaults_to_reweigh);
       console.log('\n------------------------------------');
 
       const underlying = UNDERLYING_LIST[ix]
@@ -202,4 +231,5 @@ async function mass_execute() {
 }
 
 // All that build-up, leading up to... this.
+setup();
 mass_execute();
