@@ -48,6 +48,20 @@ function toAPR(n) {
     return n/weight_unity * 100;
 }
 
+function calculate_current_apr(ad_lst, cr_ad_map, av_ad_map) {
+    let totalAPR: number = 0;
+    
+    for (let ix in ad_lst) {
+        const ad = ad_lst[ix];
+        
+        const ad_wt = cr_ad_map.get(ad);
+        const ad_apr = av_ad_map.get(ad);
+        
+        totalAPR += (ad_apr / weight_unity) * ad_wt;
+    }
+    return totalAPR;
+}
+
 // --------------------------
 // On-Chain Interaction Setup
 // --------------------------
@@ -77,6 +91,7 @@ async function execute(underlying) {
 
     const current_adapters = current_adapters_weights[0];
     const current_weights = current_adapters_weights[1].map(a => Number(a));
+    const current_adapter_map = new Map<String, Number>(zip(current_adapters, current_weights));
 
     const combined_current = zip(current_adapters, current_weights);
     console.log(`\nCurrent adapter weightings:`);
@@ -88,77 +103,65 @@ async function execute(underlying) {
     console.log(`\nAvailable adapter rates at current levels:`);
     console.log(sorted_adapter_map);
 
-    /** OPTIMISER VERSION 1: INCREDIBLY NAIVE
+    /** OPTIMISER VERSION 1.1: SLIGHTLY LESS NAIVE (CALCULATES CURRENT APR FROM ON-CHAIN DATA)
     /
-    / Step 1: Is there just one adapter being used?
-    /   * Yes: move on.
-    /   * No:  you're out of luck for this version. BREAK;
-    / Step 2: Does the currently utilised adapter have the highest rate of all potential adapters for the vault?
-    /   * No:  move on.
-    /   * Yes: nothing to do. BREAK;
-    / Step 3: Is there only one adapter registered to the vault?
+    / Step 1: Is there only one adapter registered to the vault?
     /   * Yes: the hell are you trying to optimise, then? Begone. BREAK;
     /   * No:  move on.
-    / Step 4: Is the difference between the highest available adapter and the current one at least 5%?
+    / Step 2: Is the difference between the highest available adapter and the current one at least 5%?
     /   * Yes: you have a reweight opportunity!
     /   * No:  nothing to do. BREAK;
-    / Step 5: Has at least an hour passed since the last weight/adapter-shifting rebalance?
+    / Step 3: Has at least an hour passed since the last weight/adapter-shifting rebalance?
     /   * Yes: you're good to do, submit the reweighting!
     /   * No:  you have to wait a bit. BREAK;
-    / Step 6: ???
-    / Step 7: Profit!
+    / Step 4: ???
+    / Step 5: Profit!
     /
     / Note: The optimiser does *not* yet count for APR shifts when moving capital between adapters.
     /
     **/
 
-    const only_one_adapter = current_adapters.length == 1
     const current_adapter = current_adapters[0]
     const best_adapter = sorted_adapters[0][0]
+  
+    const current_adapter_rate = calculate_current_apr(current_adapters, current_adapter_map, sorted_adapter_map);
+    const best_single_adapter_rate = sorted_adapter_map.get(best_adapter);
+    
+    console.log(`\n*** Current adapter rate is %d%.`, round2(toAPR(current_adapter_rate)));
 
-    if (!only_one_adapter) {
-        console.log(`\nOptimiser complete: more than one adapter currently in use. Please wait for an improved version of the optimiser.`);
+    const multiple_potential_adapters = sorted_adapter_map.size > 1;
+
+    if (!multiple_potential_adapters) {
+      console.log(`\nOptimiser complete: only one available adapter for the vault.`);
     }
     else {
-      const current_best_adapter = sorted_adapters[0].indexOf(current_adapter) == 0;
-
-      const current_adapter_rate = sorted_adapter_map.get(current_adapter);
-      const best_adapter_rate = sorted_adapter_map.get(best_adapter);
-
-      if (current_best_adapter) {
-        console.log(`\nOptimiser complete: vault is currently utilising the best APR adapter at a rate of %d%.`, round2(toAPR(current_adapter_rate)));
+      const adapter_difference = Number(best_single_adapter_rate) / Number(current_adapter_rate);
+      
+      if (adapter_difference == 1) {
+          console.log(`\nOptimiser complete: currently using best adapter rate.`);
       }
       else {
-        const multiple_potential_adapters = sorted_adapter_map.size > 1;
-
-        if (!multiple_potential_adapters) {
-          console.log(`\nOptimiser complete: only one available adapter for the vault.`);
+        if (adapter_difference < 1.05) {
+          console.log(`\nOptimiser complete: insufficient percentage gain for reweighting - need at least 1.05x, got %sx.`, round2(adapter_difference));
         }
         else {
-          const adapter_difference = Number(best_adapter_rate) / Number(current_adapter_rate);
+          const time_to_rebalance = await nirn_vault.canChangeCompositionAfter();
+          const current_time = Math.round(Date.now()/1000);
 
-          if (adapter_difference < 1.05) {
-            console.log(`\nOptimiser complete: insufficient percentage gain for reweighting - need at least 1.05x, got %sx.`, round2(adapter_difference));
+          if (current_time <= time_to_rebalance) {
+            console.log(`\nOptimiser complete: insufficient time has passed since the previous reweighting. `
+                      + `Wait %s seconds and try again.`, time_to_rebalance - current_time);
           }
           else {
-            const time_to_rebalance = await nirn_vault.canChangeCompositionAfter();
-            const current_time = Math.round(Date.now()/1000);
+            // Okay, NOW we can go!
+            console.log(`\nAdjusting vault from a rate of %d% to %d%...`, round2(toAPR(current_adapter_rate)), round2(toAPR(best_single_adapter_rate)));
+            const gasPrice = (await provider.getGasPrice()).mul(12).div(10);
+            const gasLimit = await nirn_vault.estimateGas.rebalanceWithNewAdapters([best_adapter], [weight_unity.toString()]);
 
-            if (current_time <= time_to_rebalance) {
-              console.log(`\nOptimiser complete: insufficient time has passed since the previous reweighting. `
-                        + `Wait %s seconds and try again.`, time_to_rebalance - current_time);
-            }
-            else {
-              // Okay, NOW we can go!
-              console.log(`\nAdjusting vault from a rate of %d% to %d%...`, round2(toAPR(current_adapter_rate)), round2(toAPR(best_adapter_rate)));
-              const gasPrice = (await provider.getGasPrice()).mul(12).div(10);
-              const gasLimit = await nirn_vault.estimateGas.rebalanceWithNewAdapters([best_adapter], [weight_unity.toString()]);
-
-              const tx = await nirn_vault.rebalanceWithNewAdapters([best_adapter], [weight_unity.toString()], { gasPrice, gasLimit });
-              console.log(`\nSent transaction...`);
-              await tx.wait();
-              console.log(`\nFinished!`);
-            }
+            const tx = await nirn_vault.rebalanceWithNewAdapters([best_adapter], [weight_unity.toString()], { gasPrice, gasLimit });
+            console.log(`\nSent transaction...`);
+            await tx.wait();
+            console.log(`\nFinished!`);
           }
         }
       }
