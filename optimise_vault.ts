@@ -28,9 +28,11 @@ const null_addr = '0x0000000000000000000000000000000000000000'
 
 const AdapterRegistryABI = require('./optimiser-deployments/AdapterRegistry.json');
 const VaultABI = require('./optimiser-deployments/NirnVault.json');
+const AdapterABI = require('./optimiser-deployments/TokenAdapter.json'); // this only contains an ABI for name right now
 
 let adapter_registry: Contract;
 let nirn_vault: Contract;
+let token_adapter: Contract;
 
 // -------------------
 // Auxiliary Functions
@@ -50,16 +52,24 @@ function toAPR(n) {
 
 function calculate_current_apr(ad_lst, cr_ad_map, av_ad_map) {
     let totalAPR: number = 0;
-    
+
     for (let ix in ad_lst) {
         const ad = ad_lst[ix];
-        
+
         const ad_wt = cr_ad_map.get(ad);
         const ad_apr = av_ad_map.get(ad);
-        
+
         totalAPR += (ad_apr / weight_unity) * ad_wt;
     }
     return totalAPR;
+}
+
+async function get_adapter_protocol(adapter_addr) {
+    await setup_token_adapter(adapter_addr);
+
+    const adapter_protocol = await token_adapter.name();
+
+    return adapter_protocol.split(" ")[0];
 }
 
 // --------------------------
@@ -72,6 +82,10 @@ async function setup_registry() {
 
 async function setup_vault(vault_addr) {
     nirn_vault = new Contract(vault_addr, VaultABI, wallet);
+  }
+
+async function setup_token_adapter(adapter_addr) {
+    token_adapter = new Contract(adapter_addr, AdapterABI, wallet);
   }
 
 // --------------------
@@ -123,11 +137,16 @@ async function execute(underlying) {
 
     const current_adapter = current_adapters[0]
     const best_adapter = sorted_adapters[0][0]
-  
+
+    const adapter_name = await get_adapter_protocol(current_adapter);
+
+    let name_of_current: string;
+    if ( current_adapters.length > 1 ) { name_of_current = "a mixture of adapters" } else { name_of_current = adapter_name }
+
     const current_adapter_rate = calculate_current_apr(current_adapters, current_adapter_map, sorted_adapter_map);
     const best_single_adapter_rate = sorted_adapter_map.get(best_adapter);
-    
-    console.log(`\n*** Current adapter rate is %d%.`, round2(toAPR(current_adapter_rate)));
+
+    console.log(`\n*** Current adapter rate is %d%, via %s.`, round2(toAPR(current_adapter_rate)), name_of_current);
 
     const multiple_potential_adapters = sorted_adapter_map.size > 1;
 
@@ -136,7 +155,7 @@ async function execute(underlying) {
     }
     else {
       const adapter_difference = Number(best_single_adapter_rate) / Number(current_adapter_rate);
-      
+
       if (adapter_difference == 1) {
           console.log(`\nOptimiser complete: currently using best adapter rate.`);
       }
@@ -154,7 +173,8 @@ async function execute(underlying) {
           }
           else {
             // Okay, NOW we can go!
-            console.log(`\nAdjusting vault from a rate of %d% to %d%...`, round2(toAPR(current_adapter_rate)), round2(toAPR(best_single_adapter_rate)));
+            const best_adapter_name = await get_adapter_protocol(best_adapter);
+            console.log(`\nMoving vault funds to %s to shift from a rate of %d% to %d%...`, best_adapter_name, round2(toAPR(current_adapter_rate)), round2(toAPR(best_single_adapter_rate)));
             const gasPrice = (await provider.getGasPrice()).mul(12).div(10);
             const gasLimit = await nirn_vault.estimateGas.rebalanceWithNewAdapters([best_adapter], [weight_unity.toString()]);
 
