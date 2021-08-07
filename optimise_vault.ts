@@ -132,8 +132,8 @@ async function execute(underlying) {
     const sorted_adapter_names = sorted_adapters[0].map(a => getAdapterProtocolName(a));
 
     const sorted_adapter_map = new Map<String,[Number,String]>(zip(sorted_adapters[0]
-                                                                   , zip(sorted_adapters[1].map(a => Number(a)), sorted_adapter_names))
-                                                                    );
+                                                             , zip(sorted_adapters[1].map(a => Number(a)), sorted_adapter_names))
+                                                              );
     console.log(`\nAvailable adapter rates at current levels:`);
     console.log(sorted_adapter_map);
 
