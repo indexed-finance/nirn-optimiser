@@ -2,13 +2,11 @@
 
 Script for detecting and adjusting weightings of Nirn yield aggregator vaults.
 
-*Last Update: 6 August 2021*
+*Last Update: 7 August 2021*
 
 ## Current Status
 
 This is *very* simple at present, and simply pushes funds across protocols to where the yield is best.
-
-**Key assumption**: the current distribution is only utilising a single adapter.
 
 This can - and will - get more sophisticated as time goes on. At _current_ TVLs, it is HUGELY unlikely to be optimal to split assets across protocols, except to flex that we *can*.
 
