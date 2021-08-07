@@ -61,7 +61,7 @@ function calculate_current_apr(ad_lst, cr_ad_map, av_ad_map) {
         const ad = ad_lst[ix];
 
         const ad_wt = cr_ad_map.get(ad);
-        const ad_apr = av_ad_map.get(ad);
+        const ad_apr = av_ad_map.get(ad)[0];
 
         totalAPR += (ad_apr / weight_unity) * ad_wt;
     }
@@ -108,7 +108,7 @@ async function setup_token_adapter(adapter_addr) {
 
 
 async function execute(underlying) {
-    
+
     // Administrative, fetching names and what have you
     await setup_registry();
     const vault = await adapter_registry.vaultsByUnderlying(underlying);
@@ -127,9 +127,13 @@ async function execute(underlying) {
     console.log(`\nCurrent adapter weightings:`);
     console.log(combined_current);
 
-    // Get sorted list of adapters and APRs for current deposit levels for the given vault
+    // Get sorted list of adapters, their names and APRs for current deposit levels for the given vault
     const sorted_adapters = await adapter_registry.getAdaptersSortedByAPRWithDeposit(underlying, 0, null_addr);
-    const sorted_adapter_map = new Map<String,Number>(zip(sorted_adapters[0], sorted_adapters[1].map(a => Number(a))));
+    const sorted_adapter_names = sorted_adapters[0].map(a => getAdapterProtocolName(a));
+
+    const sorted_adapter_map = new Map<String,[Number,String]>(zip(sorted_adapters[0]
+                                                                   , zip(sorted_adapters[1].map(a => Number(a)), sorted_adapter_names))
+                                                                    );
     console.log(`\nAvailable adapter rates at current levels:`);
     console.log(sorted_adapter_map);
 
@@ -160,7 +164,7 @@ async function execute(underlying) {
     if ( current_adapters.length > 1 ) { name_of_current = "a mixture of adapters" } else { name_of_current = adapter_name }
 
     const current_adapter_rate = calculate_current_apr(current_adapters, current_adapter_map, sorted_adapter_map);
-    const best_single_adapter_rate = sorted_adapter_map.get(best_adapter);
+    const best_single_adapter_rate = sorted_adapter_map.get(best_adapter)[0];
 
     console.log(`\n*** Current adapter rate is %d%, via %s.`
               , round2(toAPR(current_adapter_rate))
@@ -215,7 +219,6 @@ async function setup() {
 }
 
 async function mass_execute() {
-        
     const total_vaults_to_reweigh = UNDERLYING_LIST.length;
 
     for (let ix in UNDERLYING_LIST) {
