@@ -12,7 +12,7 @@ import { Wallet } from '@ethersproject/wallet';
 import { NirnSubgraphClient } from '@indexed-finance/subgraph-clients'
 import { TokenAdapter } from "@indexed-finance/subgraph-clients/dist/nirn/types";
 
-import { PRIVATE_KEY, INFURA_KEY, UNDERLYING_LIST } from './env_vars';
+import { PRIVATE_KEY, INFURA_KEY, UNDERLYING_LIST, MAX_GAS } from './env_vars';
 
 // -------------------
 // Top-Level Variables
@@ -107,7 +107,7 @@ async function setup_token_adapter(adapter_addr) {
 // --------------------
 
 
-async function execute(underlying) {
+async function execute(underlying, gasPrice) {
 
     // Administrative, fetching names and what have you
     await setup_registry();
@@ -137,7 +137,7 @@ async function execute(underlying) {
     console.log(`\nAvailable adapter rates at current levels:`);
     console.log(sorted_adapter_map);
 
-    /** OPTIMISER VERSION 1.1: SLIGHTLY LESS NAIVE (CALCULATES CURRENT APR FROM ON-CHAIN DATA)
+    /** OPTIMISER VERSION 1.2: SLIGHTLY LESS NAIVE (CALCULATES CURRENT APR FROM ON-CHAIN DATA)
     /
     / Step 1: Is there only one adapter registered to the vault?
     /   * Yes: the hell are you trying to optimise, then? Begone. BREAK;
@@ -146,10 +146,13 @@ async function execute(underlying) {
     /   * Yes: you have a reweight opportunity!
     /   * No:  nothing to do. BREAK;
     / Step 3: Has at least an hour passed since the last weight/adapter-shifting rebalance?
-    /   * Yes: you're good to do, submit the reweighting!
+    /   * Yes: the reweight will be accepted.
     /   * No:  you have to wait a bit. BREAK;
-    / Step 4: ???
-    / Step 5: Profit!
+    / Step 4: Is the current gas on the network less than your specified maximum?
+    /   * Yes: AAAAA STOP STALLING AND SEND IT
+    /   * No:  don't send the reweight: perhaps keep this running in a loop via `tmux` or `screen`? BREAK;
+    / Step 5: ???
+    / Step 6: Profit!
     /
     / Note: The optimiser does *not* yet count for APR shifts when moving capital between adapters.
     /
@@ -195,19 +198,28 @@ async function execute(underlying) {
                       + `Wait %s seconds and try again.`, time_to_rebalance - current_time);
           }
           else {
-            // Okay, NOW we can go!
             const best_adapter_name = await getAdapterProtocolName(best_adapter);
-            console.log(`\nMoving vault funds to %s to shift from a rate of %d% to %d%...`
+            console.log(`\nFound a rebalance opportunity: shift fund to %s to improve the vault rate from %d% to %d%...`
                        , best_adapter_name
                        , round2(toAPR(current_adapter_rate))
                        , round2(toAPR(best_single_adapter_rate)));
-            const gasPrice = (await provider.getGasPrice()).mul(12).div(10);
-            const gasLimit = await nirn_vault.estimateGas.rebalanceWithNewAdapters([best_adapter], [weight_unity.toString()]);
 
-            const tx = await nirn_vault.rebalanceWithNewAdapters([best_adapter], [weight_unity.toString()], { gasPrice, gasLimit });
-            console.log(`\nSent transaction...`);
-            await tx.wait();
-            console.log(`\nFinished!`);
+            const scaled_down_gas = Number(gasPrice) / 1000000000;
+
+            if (MAX_GAS < scaled_down_gas) {
+                console.log(`Gas is currently too high: your specified maximum is %d gwei, but it's currently %d.`
+                          , MAX_GAS
+                          , scaled_down_gas);
+            }
+            else {
+              // Okay, NOW we can go!
+              const gasLimit = await nirn_vault.estimateGas.rebalanceWithNewAdapters([best_adapter], [weight_unity.toString()]);
+
+              const tx = await nirn_vault.rebalanceWithNewAdapters([best_adapter], [weight_unity.toString()], { gasPrice, gasLimit });
+              console.log(`\nSent transaction...`);
+              await tx.wait();
+              console.log(`\nFinished!`);
+            }
           }
         }
       }
@@ -221,6 +233,8 @@ async function setup() {
 async function mass_execute() {
     const total_vaults_to_reweigh = UNDERLYING_LIST.length;
 
+    const gasPrice = (await provider.getGasPrice()).mul(12).div(10);
+
     for (let ix in UNDERLYING_LIST) {
       console.log('\n------------------------------------');
       console.log('\n*** Executing optimisation %d of %d...'
@@ -229,7 +243,7 @@ async function mass_execute() {
       console.log('\n------------------------------------');
 
       const underlying = UNDERLYING_LIST[ix]
-      await(execute(underlying));
+      await(execute(underlying, gasPrice));
     }
 }
 

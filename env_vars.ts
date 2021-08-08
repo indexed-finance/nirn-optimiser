@@ -18,3 +18,6 @@ export const UNDERLYING_LIST = [
     '0x6b175474e89094c44da98b954eedeac495271d0f',
     '0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9'
 ]
+
+// Enter the maximum gas price (in gwei) that you're willing to accept paying for a rebalance to be executed.
+export const MAX_GAS = 30;
