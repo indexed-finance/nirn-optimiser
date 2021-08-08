@@ -25,6 +25,7 @@ Put these three things in env_vars.ts:
 * The `PRIVATE_KEY` (sans leading 0x) for the wallet that you want to execute a reweight from,
 * The `INFURA_KEY` that allows you read on-chain data and submit the reweight via their API, and
 * The `UNDERLYING_LIST` of token addresses for the vaults: if you're optimising the nUSDT and nSUSHI vault, use the USDT and SUSHI addresses.
+* The `MAX_GAS` (in gwei) that you're willing to send a reweight transaction at, if you find one.
 
 If you don't have an Infura API key, here's how to get one: https://medium.com/jelly-market/how-to-get-infura-api-key-e7d552dd396f
 
