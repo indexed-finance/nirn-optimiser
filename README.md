@@ -2,7 +2,7 @@
 
 Script for detecting and adjusting weightings of Nirn yield aggregator vaults.
 
-*Last Update: 7 August 2021*
+*Last Update: 8 August 2021*
 
 ## Current Status
 
@@ -40,11 +40,11 @@ Make sure you have a 'decent' amount of ETH in the wallet you're executing from:
 
 ## In Action
 
-Targeting the nWBTC vault, shifting funds from Fulcrum to C.R.E.A.M.:
+Targeting the nDAI vault, shifting funds from the Iron Bank & Fulcrum to C.R.E.A.M.:
 
-![image](https://user-images.githubusercontent.com/36096924/128519317-a99f98c9-b08f-406d-994e-fb4dd39fcd73.png)
+![image](https://user-images.githubusercontent.com/36096924/128636597-0edd1005-f03d-4709-9799-92d82345fb87.png)
 
-Result: https://etherscan.io/tx/0x29825ade33e7705cd7a6c4962c48c16a4fbd4ea79c1c51cdfdc7d537984f990a
+Result: https://etherscan.io/tx/0x68dd085584a2c2660482258a74172c992e0ace7c70aa282e21e1bfa37d91e638
 
 Account has no whitelisted permissions within Nirn: you can do this too.
 
