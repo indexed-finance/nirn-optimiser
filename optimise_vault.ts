@@ -247,6 +247,53 @@ async function mass_execute() {
     }
 }
 
+// Optional function I'm playing with: comment out mass_execute and uncomment list_all_max_adapters()
+// if you want to see the best/worst rates for everything that Nirn currently supports.
+async function list_all_max_adapters() {
+    await setup_registry();
+    const supported_tokens = await adapter_registry.getSupportedTokens();
+    
+    let asset_rec: object[] = [];
+    
+    for (let ix in supported_tokens) {
+        const adapter_list = await adapter_registry.getAdaptersSortedByAPR(supported_tokens[ix]);
+        
+        await setup_token_adapter(supported_tokens[ix]);
+        
+        let token_name: string;
+        
+        // Very based, Maker - return a bytes32 instead of a string for name(), why don't you
+        if (supported_tokens[ix] == '0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2') {
+            token_name = "Maker";
+            console.log("[%d of %d] Processing Maker...", Number(ix) + 1, supported_tokens.length);
+        }
+        else {
+          token_name = await token_adapter.name();
+          console.log('[%d of %d] Processing %s...', Number(ix) + 1, supported_tokens.length, token_name);
+        }
+        
+        let record = [round2(Number(adapter_list[1][0])/weight_unity * 100)
+                    , token_name
+                    , getAdapterProtocolName(adapter_list[0][0])
+                    , (adapter_list[0].length.toString())]
+        
+        asset_rec.push(record);
+    }
+    
+    const sorted_assets = asset_rec.sort((a, b) => (a[0] < b[0] ? 1 : -1));
+    
+    console.log('\Excluding assets with only one adapter:\n');
+    for (let ix in sorted_assets) {
+        let asset_rec = sorted_assets[ix];
+        if (asset_rec[3] > 1) {
+            console.log('%d%\t%s @ %s [%s available adapters]', asset_rec[0], asset_rec[1], asset_rec[2], asset_rec[3])
+        }
+    }
+    
+}
+
 // All that build-up, leading up to... this.
 setup();
 mass_execute();
+//list_all_max_adapters();
+
