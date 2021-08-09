@@ -199,7 +199,7 @@ async function execute(underlying, gasPrice) {
           }
           else {
             const best_adapter_name = await getAdapterProtocolName(best_adapter);
-            console.log(`\nFound a reweight opportunity: shift fund to %s to improve the vault rate from %d% to %d%...`
+            console.log(`\nFound a reweight opportunity: shift funds to %s to improve the vault rate from %d% to %d%...`
                        , best_adapter_name
                        , round2(toAPR(current_adapter_rate))
                        , round2(toAPR(best_single_adapter_rate)));
