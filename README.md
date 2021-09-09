@@ -1,6 +1,6 @@
 # nirn-optimiser
 
-Script for detecting and adjusting weightings of Nirn yield aggregator vaults.
+Script for detecting and adjusting weightings of [Nirn](https://github.com/indexed-finance/nirn) yield aggregator vaults.
 
 *Last Update: 10 August 2021*
 
