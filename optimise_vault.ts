@@ -12,7 +12,7 @@ import { Wallet } from '@ethersproject/wallet';
 import { NirnSubgraphClient } from '@indexed-finance/subgraph-clients'
 import { TokenAdapter } from "@indexed-finance/subgraph-clients/dist/nirn/types";
 
-import { PRIVATE_KEY, INFURA_KEY, UNDERLYING_LIST, MAX_GAS } from './env_vars';
+import { PRIVATE_KEY, INFURA_KEY, UNDERLYING_LIST, MAX_GAS, RATIO_OFFSET } from './env_vars';
 
 // -------------------
 // Top-Level Variables
@@ -31,10 +31,12 @@ const null_addr = '0x0000000000000000000000000000000000000000'
 const AdapterRegistryABI = require('./optimiser-deployments/AdapterRegistry.json');
 const VaultABI = require('./optimiser-deployments/NirnVault.json');
 const AdapterABI = require('./optimiser-deployments/TokenAdapter.json'); // this only contains an ABI for name right now
+const ERC20ABI = require('./optimiser-deployments/ERC20.json');
 
 let adapter_registry: Contract;
 let nirn_vault: Contract;
 let token_adapter: Contract;
+let base_token: Contract;
 
 let getAdapterProtocolName: (address: string) => string;
 
@@ -101,6 +103,10 @@ async function setup_vault(vault_addr) {
 async function setup_token_adapter(adapter_addr) {
     token_adapter = new Contract(adapter_addr, AdapterABI, wallet);
   }
+  
+async function setup_base_token(token_addr) {
+    base_token = new Contract(token_addr, ERC20ABI, wallet);
+  }
 
 // --------------------
 // The Actual Optimiser
@@ -108,13 +114,35 @@ async function setup_token_adapter(adapter_addr) {
 
 
 async function execute(underlying, gasPrice) {
+    
+    let executed_rebalance = false;
 
     // Administrative, fetching names and what have you
     await setup_registry();
     const vault = await adapter_registry.vaultsByUnderlying(underlying);
     await setup_vault(vault);
+    await setup_base_token(underlying);
     const vault_underlying = await nirn_vault.name();
     console.log(`\nTargeted vault is %s, at address %s`, vault_underlying, vault);
+    
+    // Find amount of token in reserve versus vault assets, to determine whether a rebalance is needed
+    const current_balance = Number(await nirn_vault.balance());
+    const current_reserve_balance = Number(await base_token.balanceOf(vault));
+    const reserve_ratio = current_reserve_balance / current_balance * 100;
+    console.log(`\nCurrent reserve ratio within vault: %d%`, round2(reserve_ratio));
+    
+    const desired_reserve_ratio = Number(await nirn_vault.reserveRatio())/1e18 * 100;
+    console.log(`Desired reserve ratio within vault: %d%`, round2(desired_reserve_ratio));
+    
+    const ratio_delta = reserve_ratio / desired_reserve_ratio;
+    
+    const trigger_ratio_rebalance = ratio_delta < 1 - RATIO_OFFSET || ratio_delta > 1 + RATIO_OFFSET
+    if (trigger_ratio_rebalance) {
+        console.log(`Reserve ratio outside of acceptable drift: will rebalance.`);
+    } 
+    else {
+        console.log(`Reserve ratio within acceptable parameters.`);
+    }
 
     // Find current weightings of the vault to determine existing APR
     const current_adapters_weights = await nirn_vault.getAdaptersAndWeights();
@@ -219,11 +247,35 @@ async function execute(underlying, gasPrice) {
               console.log(`\nSent transaction...`);
               await tx.wait();
               console.log(`\nFinished!`);
+              executed_rebalance = true;
             }
           }
         }
       }
     }
+    
+    // If the reserve ratio is excessively out of whack, move funds around to reach desired ratio again.
+    // ('Excess' here is defined by the env_vars.ts variable RATIO_OFFSET).
+    if (!executed_rebalance && trigger_ratio_rebalance) {
+        
+        console.log("\nReserve ratio outside of acceptable floating parameters: attempting to trigger a rebalance...");
+        
+        const scaled_down_gas = Number(gasPrice) / 1000000000;
+        
+        if (MAX_GAS < scaled_down_gas) {
+                console.log(`Gas is currently too high: your specified maximum is %d gwei, but it's currently %d.`
+                          , MAX_GAS
+                          , scaled_down_gas);
+        }
+        else {
+            const gasLimit = await nirn_vault.estimateGas.rebalance();
+            const tx = await nirn_vault.rebalance({ gasPrice, gasLimit });
+            console.log(`\nSent transaction...`);
+            await tx.wait();
+            console.log(`\nFinished!`);
+        }
+    }
+    
 }
 
 async function setup() {

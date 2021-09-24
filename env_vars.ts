@@ -19,5 +19,10 @@ export const UNDERLYING_LIST = [
     '0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9'
 ]
 
+// Enter the maximum reserve ratio offset at which point you wish to retrigger a rebalance
+// (i.e. if you wish to trigger a deposit or withdrawal to/from the underlying protocols if the difference
+//       between the current and desired reserve ratio is at least 25%, enter 0.25).
+export const RATIO_OFFSET = 0.25;
+
 // Enter the maximum gas price (in gwei) that you're willing to accept paying for a rebalance to be executed.
-export const MAX_GAS = 30;
+export const MAX_GAS = 20;
