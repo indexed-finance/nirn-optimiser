@@ -2,7 +2,7 @@
 
 Script for detecting and adjusting weightings of [Nirn](https://github.com/indexed-finance/nirn) yield aggregator vaults.
 
-*Last Update: 10 August 2021*
+*Last Update: 24 September 2021*
 
 ## Current Status
 
