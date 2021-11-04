@@ -26,6 +26,7 @@ Put these four things in env_vars.ts:
 * The `INFURA_KEY` that allows you read on-chain data and submit the reweight via their API, and
 * The `UNDERLYING_LIST` of token addresses for the vaults: if you're optimising the nUSDT and nSUSHI vault, use the USDT and SUSHI addresses.
 * The `MAX_GAS` (in gwei) that you're willing to send a reweight transaction at, if you find one.
+* The `RATIO_OFFSET` (between 0 - 1 in percent) beyond which you're willing to pay for a rebalance to establish the reserve ratio.
 
 If you don't have an Infura API key, here's how to get one: https://medium.com/jelly-market/how-to-get-infura-api-key-e7d552dd396f
 
