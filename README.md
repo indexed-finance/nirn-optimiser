@@ -20,7 +20,7 @@ If you feel like refactoring this to improve my... middling Typescript, PRs are 
 
 Run `yarn install` in the main directory.
 
-Put these four things in env_vars.ts:
+Put these five things in env_vars.ts:
 
 * The `PRIVATE_KEY` (sans leading 0x) for the wallet that you want to execute a reweight from,
 * The `INFURA_KEY` that allows you read on-chain data and submit the reweight via their API, and
